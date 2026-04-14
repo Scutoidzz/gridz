@@ -1,5 +1,5 @@
-// No_STD because I hate STDS 
-#![no_std]
+// No_STD because I'm not a std guy
+
 #![no_main]
 
 use core::panic::PanicInfo;
