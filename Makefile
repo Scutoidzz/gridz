@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -mno-red-zone -mcmodel=kernel -fno-pic -fno-pie -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-rtti -std=c++17
+CXXFLAGS = -mno-red-zone -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2 -fno-pic -fno-pie -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-rtti -std=c++17
 
 TARGET = kernel.o
 SRCS = src/main.cpp src/font.cpp
