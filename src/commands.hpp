@@ -1,4 +1,5 @@
 #pragma once
+#include "ui/ui.hpp"
 
 inline bool match_cmd(const char* buf, const char* target, int target_len) {
     for (int i = 0; i < target_len; i++) {
@@ -6,6 +7,8 @@ inline bool match_cmd(const char* buf, const char* target, int target_len) {
     }
     return buf[target_len] == '\0';
 }
+
+#include "doom/doomgeneric/doomgeneric.h"
 
 inline void execute_command(const char* buffer, Terminal* term) {
     if (match_cmd(buffer, "clear", 5)) {
@@ -28,10 +31,35 @@ inline void execute_command(const char* buffer, Terminal* term) {
     else if (match_cmd(buffer, "help", 4)) {
         term->cursor_y += 8;
         term->cursor_x = 0;
-        const char* msg = "Commands: clear, focus, help";
+        const char* msg = "Commands: clear, focus, help, 'load ui', doom";
         for(int i=0; msg[i] != '\0'; i++) {
             term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFFFF00); // Yellow
             term->cursor_x += 8;
+        }
+    }
+    else if (match_cmd(buffer, "load ui", 7)) {
+        term->cursor_x = 0;
+        const char* msg = "Loading UI...";
+        for(int i=0; msg[i] != '\0'; i++) {
+            term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFF0000); // Red
+            term->cursor_x += 8;
+        }
+        draw_launcher(term->fb);
+    }
+    else if (match_cmd(buffer, "doom", 4)) {
+        term->cursor_y += 8;
+        term->cursor_x = 0;
+        const char* msg = "Entering DOOM...";
+        for(int i=0; msg[i] != '\0'; i++) {
+            term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFF00FF);
+            term->cursor_x += 8;
+        }
+        
+        static char* argv[] = {(char*)"doom", (char*)"-iwad", (char*)"DOOM1.WAD", NULL};
+        doomgeneric_Create(3, argv);
+        
+        while(1) {
+            doomgeneric_Tick();
         }
     }
     else {

@@ -54,6 +54,21 @@ public:
 public:
     Terminal(limine_framebuffer* framebuffer) : fb(framebuffer), cursor_x(0), cursor_y(0), cmd_len(0) {}
 
+    void print(const char* s, uint32_t color = 0xFFFFFF) {
+        while (*s) {
+            char c = *s++;
+            if (c == '\n') {
+                newline();
+            } else {
+                draw_char(c, cursor_x, cursor_y, color);
+                cursor_x += 8;
+                if (cursor_x >= (int)fb->width) {
+                    newline();
+                }
+            }
+        }
+    }
+
     void print_char(char c) {
         if (c == '\n') {
             command_buffer[cmd_len] = '\0';

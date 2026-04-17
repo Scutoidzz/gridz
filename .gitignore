@@ -3,3 +3,18 @@
 *.iso
 *.log
 tha_hidden_documentation.md
+ha
+# Build Artifacts
+*.o
+*.elf
+*.iso
+iso_root/
+
+# Logs and Debug
+*.log
+dump.txt
+
+# OS Specific / IDE
+.DS_Store
+.vscode/
+
