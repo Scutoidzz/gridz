@@ -12,7 +12,7 @@ For your OS development project, you should ignore build artifacts, temporary lo
 
 ## Project Specifics
 - `DOOM1.WAD`: Typically game assets are not tracked if they are large or non-free.
-- `limine/`: If this is a downloaded dependency, you might want to ignore it or use a submodule.
+- `sboot/`: If this is a downloaded dependency, you might want to ignore it or use a submodule.
 
 ## Root vs Subdirectory
 Currently, your `.git` folder is inside `/gridz`. This means files in the root (like your main `Makefile`, `linker.ld`, and `DOOM1.WAD`) are NOT being tracked. 

@@ -3,7 +3,7 @@
 To improve readability, scalability, and maintainability in your `main.cpp`, consider separating different concerns into their own modules. Currently, hardware I/O, keyboard mapping, framebuffer graphics, and the main kernel loop are all consolidated into one file.
 
 ## 1. Encapsulate Terminal State
-Group together the loose `cursor_x` and `cursor_y` variables and the `limine_framebuffer` pointer into a `Terminal` class or struct. This approach prevents global state leakage and allows you to easily add new methods (like `clear_screen`, `newline`, or `backspace`).
+Group together the loose `cursor_x` and `cursor_y` variables and the `sboot_framebuffer` pointer into a `Terminal` class or struct. This approach prevents global state leakage and allows you to easily add new methods (like `clear_screen`, `newline`, or `backspace`).
 
 ## 2. Isolate Hardware interaction
 Move the low-level `inb` function and the `kbd_map` array to an `io.hpp` or `keyboard.hpp` file. This abstraction hides the intricacies of PS/2 port polling from the core logic within `_start`.

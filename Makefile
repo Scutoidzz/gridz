@@ -5,7 +5,7 @@ CFLAGS = -I$(DOOM_DIR) -mno-red-zone -mcmodel=kernel -mno-mmx -mno-sse -mno-sse2
 
 TARGET = kernel.o
 DOOM_SRCS = $(wildcard $(DOOM_DIR)/*.c)
-SRCS = src/main.cpp src/font.cpp src/ui/ui.cpp src/doom/doom_gridz.cpp src/doom/libc_stubs.cpp
+SRCS = src/main.cpp src/font.cpp src/ui/ui.cpp src/pmm.cpp src/mouse.cpp src/doom/doom_gridz.cpp src/doom/libc_stubs.cpp
 ASM_SRCS = src/interrups.asm
 OBJS = $(SRCS:.cpp=.o) $(DOOM_SRCS:.c=.o) $(ASM_SRCS:.asm=.o)
 

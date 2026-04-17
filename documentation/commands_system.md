@@ -17,7 +17,7 @@ bool match_cmd(const char* buf, const char* target, int len) {
 }
 
 // Pass everything needed to mutate the screen
-void execute_command(const char* buffer, Terminal* term, limine_framebuffer* fb) {
+void execute_command(const char* buffer, Terminal* term, sboot_framebuffer* fb) {
     if (match_cmd(buffer, "clear", 6)) {
         // Clear screen logic...
     } 

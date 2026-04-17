@@ -1,13 +1,13 @@
 #include "libc_gridz.h"
 #include <stdint.h>
 #include "../../terminal.hpp"
-#include "../limine.h"
+#include "../sboot.h"
 
 extern Terminal* global_term;
 
 extern "C" {
 
-struct limine_module_response* get_module_response();
+struct sboot_module_response* get_module_response();
 
 struct FILE {
     uint8_t* data;

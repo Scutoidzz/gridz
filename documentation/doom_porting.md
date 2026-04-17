@@ -8,7 +8,7 @@ To run a full copy of DOOM in your kernel, you can use a project like [doomgener
 1. **Pull `doomgeneric` source code** into your project via submodules or direct download.
 2. **Implement minimum stubs** required by doomgeneric:
    - `DG_Init()`: Initialize your window/framebuffer
-   - `DG_DrawFrame()`: Copy the DOOM backbuffer to your `limine_framebuffer`
+   - `DG_DrawFrame()`: Copy the DOOM backbuffer to your `sboot_framebuffer`
    - `DG_SleepMs(uint32_t ms)`: Implement a hardware loop or PIT delay
    - `DG_GetTicksMs()`: Provide system time in milliseconds
    - `DG_GetKey(int* pressed, unsigned char* key)`: Feed keyboard state to Doom

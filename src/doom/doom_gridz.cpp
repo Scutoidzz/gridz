@@ -50,8 +50,8 @@ int DG_GetKey(int* pressed, unsigned char* key) {
             case 0x4D: *key = KEY_RIGHTARROW; break;
             case 0x1C: *key = KEY_ENTER; break;
             case 0x01: *key = KEY_ESCAPE; break;
-            case 0x39: *key = ' '; break;
-            case 0x1D: *key = KEY_RCTRL; break;
+            case 0x1D: *key = KEY_FIRE; break;
+            case 0x39: *key = KEY_USE; break;
             case 0x2A: *key = KEY_RSHIFT; break;
             default:
                 if (scancode < 128) *key = kbd_map[scancode];
@@ -64,5 +64,4 @@ int DG_GetKey(int* pressed, unsigned char* key) {
 }
 
 void DG_SetWindowTitle(const char * title) {
-    // No window titles in kernel
 }
