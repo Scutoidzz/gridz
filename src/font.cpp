@@ -1,5 +1,5 @@
 #include "font.hpp"
-#include "../../documentation/font8x8.h"
+#include "font8x8_basic.h"
 
 bool get_char_bitmap(char c, uint8_t out_bitmap[8]) {
     if ((uint8_t)c < 128) {

@@ -9,6 +9,10 @@ inline bool match_cmd(const char* buf, const char* target, int target_len) {
 }
 
 #include "doom/doomgeneric/doomgeneric.h"
+#include "drivers/ata.hpp"
+#include "fs/fat32.hpp"
+
+extern bool in_gui_mode;
 
 inline void execute_command(const char* buffer, Terminal* term) {
     if (match_cmd(buffer, "clear", 5)) {
@@ -38,13 +42,47 @@ inline void execute_command(const char* buffer, Terminal* term) {
         }
     }
     else if (match_cmd(buffer, "load ui", 7)) {
+        in_gui_mode = true;
+    }
+    else if (match_cmd(buffer, "diskinfo", 8)) {
+        term->cursor_y += 8;
         term->cursor_x = 0;
-        const char* msg = "Loading UI...";
-        for(int i=0; msg[i] != '\0'; i++) {
-            term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFF0000); // Red
-            term->cursor_x += 8;
+        bool master = ata::exists(false);
+        bool slave  = ata::exists(true);
+        
+        if (master) {
+            if (fat32::init(false)) term->print("Master: FAT32 Partition detected.\n");
+            else term->print("Master: Found (No FAT32).\n");
+        } else {
+            term->print("Master: Not found.\n");
         }
-        draw_launcher(term->fb);
+        
+        if (slave) {
+            if (fat32::init(true)) term->print("Slave:  FAT32 Partition detected.\n");
+            else term->print("Slave:  Found (No FAT32).\n");
+        } else {
+            term->print("Slave:  Not found.\n");
+        }
+        
+        if (!master && !slave) {
+            term->print("No IDE disks detected. Check QEMU config.\n");
+        }
+    }
+    else if (match_cmd(buffer, "install", 7)) {
+        term->cursor_y += 8;
+        term->cursor_x = 0;
+        term->print("Installing to Master... ");
+        if (fat32::format(131072, "GRIDZ_OS", false)) {
+            term->print("Success.\n");
+        } else {
+            term->print("Failed.\n");
+            term->print("Installing to Slave... ");
+            if (fat32::format(131072, "GRIDZ_OS", true)) {
+                term->print("Success.\n");
+            } else {
+                term->print("Fatal: No writable disk found.\n");
+            }
+        }
     }
     else if (match_cmd(buffer, "doom", 4)) {
         term->cursor_y += 8;
@@ -65,7 +103,7 @@ inline void execute_command(const char* buffer, Terminal* term) {
     else {
         term->cursor_y += 8;
         term->cursor_x = 0;
-        const char* msg = "Unknown command";
+        const char* msg = "Command not found";
         for(int i=0; msg[i] != '\0'; i++) {
             term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFF0000); // Red
             term->cursor_x += 8;

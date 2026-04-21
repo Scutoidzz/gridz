@@ -4,6 +4,8 @@
 #include "../limine.h"
 
 extern Terminal* global_term;
+extern "C" void serial_print(const char* s);
+extern "C" void itoa(int n, char* s, int base);
 
 extern "C" {
 
@@ -15,28 +17,26 @@ struct FILE {
     size_t pos;
 };
 
-void itoa(int n, char* s, int base) {
-    static const char digits[] = "0123456789ABCDEF";
-    char* p = s;
-    if (n == 0) { *p++ = '0'; *p = '\0'; return; }
-    bool neg = false;
-    if (n < 0 && base == 10) { neg = true; n = -n; }
-    unsigned int un = (unsigned int)n;
-    while (un > 0) { *p++ = digits[un % base]; un /= base; }
-    if (neg) *p++ = '-';
-    *p = '\0';
-    char* q = s; p--;
-    while (q < p) { char t = *q; *q = *p; *p = t; q++; p--; }
-}
-
-#define HEAP_SIZE (1024 * 1024 * 32)
+#define HEAP_SIZE (1024 * 1024 * 64)
 static uint8_t heap[HEAP_SIZE];
 static size_t heap_ptr = 0;
 
+struct malloc_tag {
+    size_t size;
+};
+
 void* malloc(size_t size) {
-    if (heap_ptr + size > HEAP_SIZE) return NULL;
-    void* ptr = &heap[heap_ptr];
-    heap_ptr += (size + 15) & ~15;
+    size_t total = size + sizeof(malloc_tag);
+    if (heap_ptr + total > HEAP_SIZE) {
+        serial_print("MALLOC FAILED: requested ");
+        char buf[20]; itoa(size, buf, 10); serial_print(buf);
+        serial_print("\n");
+        return NULL;
+    }
+    malloc_tag* tag = (malloc_tag*)&heap[heap_ptr];
+    tag->size = size;
+    void* ptr = (void*)(tag + 1);
+    heap_ptr += (total + 15) & ~15;
     return ptr;
 }
 
@@ -50,10 +50,24 @@ void* calloc(size_t nmemb, size_t size) {
 void free(void* ptr) { (void)ptr; }
 
 void* realloc(void* ptr, size_t size) {
+    if (!ptr) return malloc(size);
+    if (size == 0) { free(ptr); return NULL; }
+    
+    malloc_tag* tag = ((malloc_tag*)ptr) - 1;
+    size_t old_size = tag->size;
+    
+    if (size <= old_size) {
+        tag->size = size; // Shrink in place (simple)
+        return ptr;
+    }
+
     void* new_ptr = malloc(size);
-    if (ptr) memcpy(new_ptr, ptr, size); // Oversimplified but might work
+    if (!new_ptr) return NULL;
+    
+    memcpy(new_ptr, ptr, old_size);
     return new_ptr;
 }
+
 
 char* strdup(const char* s) {
     size_t len = strlen(s);
@@ -123,6 +137,7 @@ char* strchr(const char* s, int c) {
 }
 
 void* memset(void* s, int c, size_t n) {
+    if (!s) return s;
     unsigned char* p = (unsigned char*)s;
     while (n--) *p++ = (unsigned char)c;
     return s;
@@ -141,6 +156,7 @@ void* memmove(void* dest, const void* src, size_t n) {
 }
 
 void* memcpy(void* dest, const void* src, size_t n) {
+    if (!dest || !src) return dest;
     unsigned char* d = (unsigned char*)dest;
     const unsigned char* s = (const unsigned char*)src;
     while (n--) *d++ = *s++;
@@ -169,44 +185,50 @@ int* __errno_location(void) { return &dummy_errno; }
 extern "C" void serial_print(const char* s);
 
 FILE* fopen(const char* p, const char* m) {
-    if (global_term) {
-        // Only print to serial for now to keep screen clean
-        // global_term->print("FOPEN: ");
-        // global_term->print(p);
-        // global_term->print("\n");
-    }
     serial_print("FOPEN: ");
     serial_print(p);
     serial_print(" mode: ");
     serial_print(m);
     serial_print("\n");
     
-    // Check if it's our WAD file
-    bool is_our_wad = false;
-    if (strstr(p, "DOOM1.WAD") || strstr(p, "doom1.wad")) is_our_wad = true;
-    
-    if (!is_our_wad) return NULL;
-
-    auto res = get_module_response();
-    if (!res || res->module_count == 0) return NULL;
-    
-    uint8_t* data = (uint8_t*)res->modules[0]->address;
-    if (global_term) {
-        global_term->print("WAD Magic: ");
-        char m[5] = { (char)data[0], (char)data[1], (char)data[2], (char)data[3], 0 };
-        global_term->print(m);
-        global_term->print("\n");
+    if (strstr(p, "DOOM1.WAD") || strstr(p, "doom1.wad")) {
+        auto res = get_module_response();
+        if (!res) {
+            serial_print("MOD_RES NULL\n");
+            goto dummy;
+        }
+        
+        for (uint64_t i = 0; i < res->module_count; i++) {
+            serial_print("MOD: ");
+            serial_print(res->modules[i]->path);
+            serial_print("\n");
+            if (strstr(res->modules[i]->path, "DOOM1.WAD") || strstr(res->modules[i]->path, "doom1.wad")) {
+                FILE* f = (FILE*)malloc(sizeof(FILE));
+                f->data = (uint8_t*)res->modules[i]->address;
+                f->size = res->modules[i]->size;
+                f->pos = 0;
+                serial_print("WAD FOUND\n");
+                return f;
+            }
+        }
+        serial_print("WAD NOT IN MODULES\n");
     }
 
+dummy:
+
+    // Fallback: return a dummy file instead of NULL to prevent crashes
+    serial_print("FOPEN DUMMY: ");
+    serial_print(p);
+    serial_print("\n");
     FILE* f = (FILE*)malloc(sizeof(FILE));
-    f->data = (uint8_t*)res->modules[0]->address;
-    f->size = res->modules[0]->size;
+    f->data = NULL;
+    f->size = 0;
     f->pos = 0;
     return f;
 }
-int fclose(FILE* s) { if (s) free(s); return 0; }
+int fclose(FILE* s) { return 0; } // Don't free for now to avoid complexity
 size_t fread(void* p, size_t s, size_t n, FILE* f) {
-    if (!f) return 0;
+    if (!f || !f->data) return 0;
     size_t total = s * n;
     if (f->pos + total > f->size) total = f->size - f->pos;
     memcpy(p, f->data + f->pos, total);
@@ -263,13 +285,20 @@ static void min_vsnprintf(char* str, size_t size, const char* format, va_list ap
                     char* p = buf;
                     while (*p && j < size - 1) str[j++] = *p++;
                 }
+                } else if (format[i] == 'x' || format[i] == 'p') {
+                unsigned long d = (format[i] == 'p') ? (unsigned long)va_arg(ap, void*) : va_arg(ap, unsigned int);
+                char buf[20];
+                itoa(d, buf, 16);
+                char* p = buf;
+                while (*p && j < size - 1) str[j++] = *p++;
             } else if (format[i] == 'd' || format[i] == 'i') {
                 int d = va_arg(ap, int);
                 char buf[16];
                 itoa(d, buf, 10);
                 char* p = buf;
                 while (*p && j < size - 1) str[j++] = *p++;
-            } else {
+            }
+ else {
                 str[j++] = '%';
                 if (j < size - 1) str[j++] = format[i];
             }
@@ -324,6 +353,10 @@ int snprintf(char* str, size_t size, const char* format, ...) {
     return strlen(str);
 }
 int fflush(FILE* s) { (void)s; return 0; }
-void exit(int s) { if (global_term) global_term->print("DOOM EXIT CALLED\n"); while(1); }
+extern bool doom_running;
+void exit(int s) { 
+    (void)s;
+    doom_running = false; 
+}
 
 }

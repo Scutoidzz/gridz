@@ -1,0 +1,6 @@
+{
+  "name": "Clock",
+  "description": "A simple clock app",
+  "entry": "clock.py",
+  "icon_color": "0xFFFF00"
+}
