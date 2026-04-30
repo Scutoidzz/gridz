@@ -1,5 +1,5 @@
 #define _STDLIB_H
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 static int icon_w = 32;
 static int icon_h = 32;
 

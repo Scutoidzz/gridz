@@ -1,20 +1,33 @@
-/target
-*.o
-*.iso
-*.log
-tha_hidden_documentation.md
-ha
 # Build Artifacts
+build/
 *.o
 *.elf
+*.img
 *.iso
-iso_root/
+iso_root/boot/kernel.elf
 
 # Logs and Debug
 *.log
+serial2.log
+qemu.log
 dump.txt
 
 # OS Specific / IDE
 .DS_Store
 .vscode/
 
+free-claude-code
+
+# Project Specific
+src/scheduler.cpp.messy
+src/micropython_old/
+backup/
+tools/scheduler.cpp.messy
+src/apps/dejigamaflipper/easteregg/post.txt
+tha_hidden_documentation.md
+halimine-bin-repo/
+docs
+.aider*
+
+hdd.img
+gridz-ai.py

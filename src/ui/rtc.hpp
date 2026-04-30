@@ -1,6 +1,6 @@
 #pragma once
 #include <stdint.h>
-#include "../io.hpp"
+#include "io.hpp"
 
 static inline uint8_t rtc_read(uint8_t reg) {
     outb(0x70, (uint8_t)(0x80 | reg));
@@ -14,7 +14,7 @@ static inline uint8_t bcd2bin(uint8_t v) {
 struct RTCTime { uint8_t h, m, s; };
 
 static inline RTCTime rtc_now() {
-    // Spin while update-in-progress flag is set
+    
     while (rtc_read(0x0A) & 0x80) {}
     uint8_t s  = rtc_read(0x00);
     uint8_t mn = rtc_read(0x02);

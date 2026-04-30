@@ -1,6 +1,9 @@
 #include "comp.hpp"
-#include "../../font.hpp"
-#include "../../font8x8_basic.h"
+#include "font.hpp"
+#include "font8x8_basic.h"
+#include "../lib/string.hpp"
+
+extern uint64_t hhdm_offset;
 
 uint32_t screen_width = 0;
 uint32_t screen_height = 0;
@@ -19,7 +22,7 @@ void draw_rectangle(limine_framebuffer* fb, int x, int y, int width, int height,
     if (y + height > (int)screen_height) height = screen_height - y;
     if (width <= 0 || height <= 0) return;
 
-    uint32_t *fb_ptr = (uint32_t *)fb->address;
+    uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
     int stride = fb->pitch / 4;
 
     for (int row = 0; row < height; row++) {
@@ -43,7 +46,7 @@ void draw_rectangle_alpha(limine_framebuffer* fb, int x, int y, int width, int h
     if (y + height > (int)screen_height) height = screen_height - y;
     if (width <= 0 || height <= 0) return;
 
-    uint32_t *fb_ptr = (uint32_t *)fb->address;
+    uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
     int stride = fb->pitch / 4;
 
     uint8_t r_src = (color >> 16) & 0xFF;
@@ -78,7 +81,7 @@ void draw_circle(limine_framebuffer* fb, int x, int y, int radius, uint32_t colo
     screen_width = fb->width;
     screen_height = fb->height;
 
-    uint32_t *fb_ptr = (uint32_t *)fb->address;
+    uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
     int stride = fb->pitch / 4;
 
     for (int row = -radius; row <= radius; row++) {
@@ -113,7 +116,7 @@ void draw_string(limine_framebuffer* fb, int x, int y, const char* s, uint32_t c
         char c = *s++;
         uint8_t bitmap[8];
         if (get_char_bitmap(c, bitmap)) {
-            uint32_t *fb_ptr = (uint32_t *)fb->address;
+            uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
             int stride = fb->pitch / 4;
             for (int row = 0; row < 8; row++) {
                 for (int col = 0; col < 8; col++) {
@@ -131,13 +134,14 @@ void draw_string(limine_framebuffer* fb, int x, int y, const char* s, uint32_t c
     }
 }
 
-void create_clickable_button(limine_framebuffer* fb, int x, int y, int width, int height, const char* shape, int radius, void (*callback)(), const char* label) {
+
+void create_clickable_button(limine_framebuffer* fb, int x, int y, int width, int height, const char* shape, int radius, void (*callback)(), const char* label, uint32_t color_hex) {
     if (!fb) return;
 
     if (strings_equal(shape, "circle")) {
-        draw_circle(fb, x, y, radius, 0x00FF00); // Green circle button
+        draw_circle(fb, x, y, radius, color_hex); // Green circle button
     } else {
-        draw_rectangle(fb, x, y, width, height, 0x0000FF); // Blue rectangle button
+        draw_rectangle(fb, x, y, width, height, color_hex); // Blue rectangle button
     }
     
     if (label) {
@@ -181,11 +185,11 @@ static const uint16_t cursor_fill[19] = {
     0b111111111100,
     0b111111110000,
     0b111101110000,
-    0b110001110000,
-    0b000001110000,
-    0b000001110000,
-    0b000000110000,
-    0b000000110000,
+    0b110000111000,
+    0b000000011100,
+    0b000000001110,
+    0b000000000000,
+    0b000000000000,
     0b000000000000,
     0b000000000000,
 };
@@ -200,20 +204,20 @@ static const uint16_t cursor_border[19] = {
     0b111111111000,
     0b111111111100,
     0b111111111110,
-    0b111111111000,
-    0b111111111000,
-    0b111001111000,
-    0b100001111000,
-    0b000001111000,
-    0b000001111000,
-    0b000000111000,
-    0b000000110000,
+    0b111111111110,
+    0b111111111110,
+    0b111101111100,
+    0b111100011110,
+    0b011000011110,
+    0b000000001110,
+    0b000000000110,
+    0b000000000000,
     0b000000000000,
 };
 
 extern "C" void draw_cursor(limine_framebuffer* fb, int cx, int cy) {
     if (!fb) return;
-    uint32_t *fb_ptr = (uint32_t *)fb->address;
+    uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
     int stride = fb->pitch / 4;
     int W = (int)fb->width;
     int H = (int)fb->height;
@@ -238,7 +242,7 @@ extern "C" void draw_cursor(limine_framebuffer* fb, int cx, int cy) {
 
             uint16_t bit = (uint16_t)(0x800 >> col);
             if (cursor_fill[row] & bit) {
-                fb_ptr[py * stride + px] = 0xFFFFFF; // white fill
+                fb_ptr[py * stride + px] = 0xFFFFFF; 
             }
         }
     }

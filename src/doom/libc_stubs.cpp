@@ -1,11 +1,11 @@
 #include "libc_gridz.h"
 #include <stdint.h>
-#include "../../terminal.hpp"
-#include "../limine.h"
+#include "terminal.hpp"
+#include "limine.h"
 
 extern Terminal* global_term;
 extern "C" void serial_print(const char* s);
-extern "C" void itoa(int n, char* s, int base);
+extern "C" void itoa(uint64_t n, char* s, int base);
 
 extern "C" {
 
@@ -17,56 +17,7 @@ struct FILE {
     size_t pos;
 };
 
-#define HEAP_SIZE (1024 * 1024 * 64)
-static uint8_t heap[HEAP_SIZE];
-static size_t heap_ptr = 0;
 
-struct malloc_tag {
-    size_t size;
-};
-
-void* malloc(size_t size) {
-    size_t total = size + sizeof(malloc_tag);
-    if (heap_ptr + total > HEAP_SIZE) {
-        serial_print("MALLOC FAILED: requested ");
-        char buf[20]; itoa(size, buf, 10); serial_print(buf);
-        serial_print("\n");
-        return NULL;
-    }
-    malloc_tag* tag = (malloc_tag*)&heap[heap_ptr];
-    tag->size = size;
-    void* ptr = (void*)(tag + 1);
-    heap_ptr += (total + 15) & ~15;
-    return ptr;
-}
-
-void* calloc(size_t nmemb, size_t size) {
-    size_t total = nmemb * size;
-    void* ptr = malloc(total);
-    if (ptr) memset(ptr, 0, total);
-    return ptr;
-}
-
-void free(void* ptr) { (void)ptr; }
-
-void* realloc(void* ptr, size_t size) {
-    if (!ptr) return malloc(size);
-    if (size == 0) { free(ptr); return NULL; }
-    
-    malloc_tag* tag = ((malloc_tag*)ptr) - 1;
-    size_t old_size = tag->size;
-    
-    if (size <= old_size) {
-        tag->size = size; // Shrink in place (simple)
-        return ptr;
-    }
-
-    void* new_ptr = malloc(size);
-    if (!new_ptr) return NULL;
-    
-    memcpy(new_ptr, ptr, old_size);
-    return new_ptr;
-}
 
 
 char* strdup(const char* s) {
@@ -184,6 +135,11 @@ static int dummy_errno = 0;
 int* __errno_location(void) { return &dummy_errno; }
 extern "C" void serial_print(const char* s);
 
+static void str_append(char* dst, int* pos, const char* src, int max) {
+    while (*src && *pos < max) dst[(*pos)++] = *src++;
+    dst[*pos] = '\0';
+}
+
 FILE* fopen(const char* p, const char* m) {
     serial_print("FOPEN: ");
     serial_print(p);
@@ -191,40 +147,55 @@ FILE* fopen(const char* p, const char* m) {
     serial_print(m);
     serial_print("\n");
     
-    if (strstr(p, "DOOM1.WAD") || strstr(p, "doom1.wad")) {
+    // Try to find ANY .WAD file if requested
+    bool is_wad = strstr(p, ".WAD") || strstr(p, ".wad");
+    
+    if (is_wad) {
         auto res = get_module_response();
         if (!res) {
-            serial_print("MOD_RES NULL\n");
-            goto dummy;
+            if (global_term) global_term->print("ERROR: Module response NULL\n");
+            return NULL;
         }
         
         for (uint64_t i = 0; i < res->module_count; i++) {
-            serial_print("MOD: ");
-            serial_print(res->modules[i]->path);
-            serial_print("\n");
-            if (strstr(res->modules[i]->path, "DOOM1.WAD") || strstr(res->modules[i]->path, "doom1.wad")) {
+            // Check if module path or cmdline contains the filename (case insensitive-ish)
+            const char* m_path = res->modules[i]->path;
+            const char* m_cmd  = res->modules[i]->cmdline;
+            
+            // Basic case-insensitive check for common WAD names
+            bool match = false;
+            if (strstr(m_path, "DOOM") || strstr(m_path, "doom") ||
+                strstr(m_cmd, "DOOM") || strstr(m_cmd, "doom")) {
+                match = true;
+            }
+                         
+            if (match) {
                 FILE* f = (FILE*)malloc(sizeof(FILE));
                 f->data = (uint8_t*)res->modules[i]->address;
                 f->size = res->modules[i]->size;
                 f->pos = 0;
-                serial_print("WAD FOUND\n");
+                
+                if (global_term) {
+                    global_term->print("Loaded module: ");
+                    global_term->print(m_path);
+                    global_term->print("\nSize: ");
+                    char sb[20]; itoa(f->size, sb, 10);
+                    global_term->print(sb); global_term->print(" bytes\n");
+                }
                 return f;
             }
         }
-        serial_print("WAD NOT IN MODULES\n");
+        if (global_term) {
+            global_term->print("ERROR: WAD not found in modules. Paths seen:\n");
+            for (uint64_t i = 0; i < res->module_count; i++) {
+                global_term->print(" - ");
+                global_term->print(res->modules[i]->path);
+                global_term->print("\n");
+            }
+        }
     }
 
-dummy:
-
-    // Fallback: return a dummy file instead of NULL to prevent crashes
-    serial_print("FOPEN DUMMY: ");
-    serial_print(p);
-    serial_print("\n");
-    FILE* f = (FILE*)malloc(sizeof(FILE));
-    f->data = NULL;
-    f->size = 0;
-    f->pos = 0;
-    return f;
+    return NULL;
 }
 int fclose(FILE* s) { return 0; } // Don't free for now to avoid complexity
 size_t fread(void* p, size_t s, size_t n, FILE* f) {

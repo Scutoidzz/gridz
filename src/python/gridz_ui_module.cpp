@@ -3,8 +3,8 @@
  * This file would be compiled and linked with MicroPython
  */
 
-#include "../ui/ui.hpp"
-#include "../ui/components/comp.hpp"
+#include "ui/ui.hpp"
+#include "ui/components/comp.hpp"
 
 // Placeholder for MicroPython headers
 // #include "py/runtime.h"

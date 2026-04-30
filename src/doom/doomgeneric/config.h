@@ -1,4 +1,4 @@
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 /* config.hin.  Generated from configure.ac by autoheader.  */
 
 /* Define to 1 if you have the <dev/isa/spkrio.h> header file. */

@@ -1,4 +1,4 @@
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 #ifndef MUS2MID_H
 #define MUS2MID_H
 

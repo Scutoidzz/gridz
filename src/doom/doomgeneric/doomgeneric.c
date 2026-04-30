@@ -1,5 +1,5 @@
 #define _STDLIB_H
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 
 #include "m_argv.h"
 

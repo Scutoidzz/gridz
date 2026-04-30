@@ -1,4 +1,4 @@
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 #ifndef DOOM_GENERIC
 #define DOOM_GENERIC
 

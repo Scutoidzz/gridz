@@ -1,6 +1,6 @@
 #include "fat32.hpp"
-#include "../drivers/ata.hpp"
-#include "../terminal.hpp"
+#include "drivers/ata.hpp"
+#include "terminal.hpp"
 
 extern Terminal* global_term;
 
@@ -29,8 +29,7 @@ bool format(uint32_t total_sectors, const char* label, bool slave) {
     bpb->boot_signature = 0x29;
     for(int i=0; i<11; i++) bpb->volume_label[i] = label[i] ? label[i] : ' ';
     for(int i=0; i<8; i++) bpb->fs_type[i] = "FAT32   "[i];
-
-    // Boot signature
+  
     buffer[255] = 0xAA55;
 
     // Write boot sector

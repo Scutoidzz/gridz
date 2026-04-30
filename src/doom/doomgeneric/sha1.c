@@ -1,5 +1,5 @@
 #define _STDLIB_H
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 /* sha1.c - SHA1 hash function
  *	Copyright (C) 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
  *

@@ -1,9 +1,10 @@
 #include "doomgeneric.h"
-#include "../../terminal.hpp"
-#include "../../io.hpp"
+#include "terminal.hpp"
+#include "io.hpp"
 
 // External access to the framebuffer
 extern Terminal* global_term;
+extern uint64_t hhdm_offset;
 
 extern uint32_t* DG_ScreenBuffer;
 
@@ -20,23 +21,7 @@ extern "C" void draw_cursor(limine_framebuffer* fb, int x, int y);
 extern volatile int mouse_x, mouse_y;
 
 void DG_DrawFrame() {
-    if (!global_term || !global_term->fb) return;
-    
-    uint32_t* fb_ptr = (uint32_t*)global_term->fb->address;
-    uint32_t pitch = global_term->fb->pitch / 4;
-    uint32_t fb_w = global_term->fb->width;
-    uint32_t fb_h = global_term->fb->height;
-
-    for (int y = 0; y < DOOMGENERIC_RESY; y++) {
-        if (y >= (int)fb_h) break;
-        for (int x = 0; x < DOOMGENERIC_RESX; x++) {
-            if (x >= (int)fb_w) break;
-            fb_ptr[y * pitch + x] = DG_ScreenBuffer[y * DOOMGENERIC_RESX + x];
-        }
-    }
-
-    // Draw mouse on top of Doom frame
-    draw_cursor(global_term->fb, mouse_x, mouse_y);
+    // Drawn via the Compositor now.
 }
 
 void DG_SleepMs(uint32_t ms) {

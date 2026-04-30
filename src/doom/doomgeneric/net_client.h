@@ -1,4 +1,4 @@
-#include "../libc_gridz.h"
+#include "libc_gridz.h"
 //
 // Copyright(C) 2005-2014 Simon Howard
 //
