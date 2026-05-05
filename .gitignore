@@ -16,6 +16,7 @@ limine-bin-repo
 limine_bin
 limine-7*
 SKILLS
+.gitignore
 
 # OS Specific / IDE
 .DS_Store

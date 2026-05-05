@@ -1,1 +1,0 @@
-MP_REGISTER_MODULE(MP_QSTR_files, mp_module_files);

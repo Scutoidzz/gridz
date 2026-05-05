@@ -1,1 +1,0 @@
-MP_REGISTER_MODULE(MP_QSTR_gridz_io, mp_module_gridz_io);
