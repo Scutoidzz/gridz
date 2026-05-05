@@ -1,6 +1,6 @@
 /**
  * 8x8 monochrome bitmap fonts for rendering
- * Created by dhepper on gith
+ * Created by dhepper on github
  **/
 
 #ifndef FONT8X8_BASIC_H

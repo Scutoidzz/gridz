@@ -51,7 +51,7 @@ void AppManager::run_app(int index) {
     int len = 0;
     while (entry[len])
       len++;
-    if (len > 4 && entry[len - 4] == "." && entry[len - 3] == "s") {
+    if (len > 4 && entry[len - 4] == '.' && entry[len - 3] == 's') {
       if (global_term)
         global_term->print("SDE: Executing No-Code package...\n");
     }

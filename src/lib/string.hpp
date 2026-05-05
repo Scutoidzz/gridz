@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 /**
- * Gridz OS Custom String Utility Header
+ * Gridz Custom String Utility Header
  * Provides standard memory and string functions for freestanding environments.
  */
 

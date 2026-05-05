@@ -23,20 +23,11 @@ inline void execute_command(const char* buffer, Terminal* term) {
             fb_ptr[i] = 0x000000;
         }
         term->cursor_y = 0;
-    } 
-    else if (match_cmd(buffer, "focus", 5)) {
-        term->cursor_y += 8;
-        term->cursor_x = 0;
-        const char* msg = "Not implemented yet";
-        for(int i=0; msg[i] != '\0'; i++) {
-            term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFF0000); // Red
-            term->cursor_x += 8;
-        }
     }
     else if (match_cmd(buffer, "help", 4)) {
         term->cursor_y += 8;
         term->cursor_x = 0;
-        const char* msg = "Commands: clear, focus, help, 'load ui', doom";
+        const char* msg = "Commands: clear, help, 'load ui', doom, diskit";
         for(int i=0; msg[i] != '\0'; i++) {
             term->draw_char(msg[i], term->cursor_x, term->cursor_y, 0xFFFF00); // Yellow
             term->cursor_x += 8;
@@ -105,6 +96,17 @@ inline void execute_command(const char* buffer, Terminal* term) {
         while(1) {
             doomgeneric_Tick();
         }
+    }
+    else if (match_cmd(buffer, "diskit", 6)) {
+        term->cursor_y += 8;
+        term->cursor_x = 0;
+        term->print("Disk information:\n");
+        term->print("Master: ");
+        term->print(ata::exists(false) ? "Present" : "Not Present");
+        term->print("\n");
+        term->print("Slave:  ");
+        term->print(ata::exists(true) ? "Present" : "Not Present");
+        term->print("\n");
     }
     else {
         term->cursor_y += 8;

@@ -11,6 +11,11 @@ iso_root/boot/kernel.elf
 serial2.log
 qemu.log
 dump.txt
+.claude
+limine-bin-repo
+limine_bin
+limine-7*
+SKILLS
 
 # OS Specific / IDE
 .DS_Store

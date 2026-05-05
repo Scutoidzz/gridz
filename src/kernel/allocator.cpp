@@ -123,14 +123,9 @@ void pmm_free_pages(void* ptr, size_t pages) {
     pmm_free_pages_count += pages;
 }
 
-// ─── liballoc hooks ───────────────────────────────────────────────────────────
-// These are called internally by liballoc to manage heap memory
-
 extern "C" {
 
 int liballoc_lock() {
-    // Return 0 on success. We don't have SMP or threads right now,
-    // so no need for an actual spinlock yet.
     return 0;
 }
 
@@ -139,11 +134,9 @@ int liballoc_unlock() {
 }
 
 void* liballoc_alloc(int pages) {
-    // liballoc asks for `pages` (4KB each). We allocate physical pages...
     void* phys = pmm_alloc_pages(pages);
     if (!phys) return nullptr;
     
-    // ...and give liballoc the higher-half virtual address where it can access it.
     return (void*)((uint64_t)phys + hhdm_offset);
 }
 

@@ -49,9 +49,19 @@ struct directory_entry_t {
     uint32_t size;
 } __attribute__((packed));
 
-bool format(uint32_t total_sectors, const char* label, bool slave = false);
-bool init(bool slave = false);
-void* read_file(const char* filename, size_t* out_size);
-bool write_file(const char* filename, void* data, size_t size);
+struct DirInfo {
+    char     name[13]; // 8.3: "XXXXXXXX.XXX\0"
+    uint32_t size;
+    bool     is_dir;
+    uint32_t cluster;
+};
+
+bool     format(uint32_t total_sectors, const char* label, bool slave = false);
+bool     init(bool slave = false);
+bool     is_initialized();
+uint32_t root_cluster();
+int      list_directory(uint32_t cluster, DirInfo* out, int max_out, bool slave = false);
+void*    read_file(const char* filename, size_t* out_size);
+bool     write_file(const char* filename, void* data, size_t size);
 
 }

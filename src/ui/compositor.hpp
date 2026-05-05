@@ -2,7 +2,7 @@
 #include "limine.h"
 #include <stdint.h>
 
-#define MAX_WINDOWS 32
+#define MAX_WINDOWS 12
 #define MAX_TITLEBAR_HEIGHT 32
 
 typedef struct {
@@ -13,8 +13,10 @@ typedef struct {
     bool visible;
     bool focused;
     const char* title;
-    int z_index;  // Explicit Z-index for layering control
-    uint32_t* content_buffer; // Optional custom pixel buffer for the window content
+    int z_index;
+    uint32_t* content_buffer;
+    int content_buffer_w; // actual buffer dimensions (0 = use window size)
+    int content_buffer_h;
 } Window;
 
 class Compositor {
@@ -39,15 +41,26 @@ public:
     static bool is_dragging();
     static int get_window_at(int mx, int my);
     static bool is_on_titlebar(int window_id, int mx, int my);
-    
-    // Access to window array for click handling
+
+    // Resize support
+    static bool start_resize(int window_id, int mx, int my);
+    static void update_resize(int mx, int my);
+    static void end_resize();
+    static bool is_resizing();
+    static bool is_on_resize_handle(int window_id, int mx, int my);
+
     static Window windows[MAX_WINDOWS];
     static int window_count;
-    
+
 private:
     static int focused_window;
     static int dragging_window;
     static int drag_offset_x;
     static int drag_offset_y;
+    static int resizing_window;
+    static int resize_start_mx;
+    static int resize_start_my;
+    static int resize_start_w;
+    static int resize_start_h;
     static void sort_by_zindex();
 };

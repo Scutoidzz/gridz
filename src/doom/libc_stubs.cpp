@@ -325,9 +325,22 @@ int snprintf(char* str, size_t size, const char* format, ...) {
 }
 int fflush(FILE* s) { (void)s; return 0; }
 extern bool doom_running;
-void exit(int s) { 
+void exit(int s) {
     (void)s;
-    doom_running = false; 
+    doom_running = false;
+}
+
+int memcmp(const void* s1, const void* s2, size_t n) {
+    const unsigned char* a = (const unsigned char*)s1;
+    const unsigned char* b = (const unsigned char*)s2;
+    for (size_t i = 0; i < n; i++) {
+        if (a[i] != b[i]) return a[i] - b[i];
+    }
+    return 0;
+}
+
+void __assert_fail(const char*, const char*, unsigned int, const char*) {
+    for (;;) {}
 }
 
 }

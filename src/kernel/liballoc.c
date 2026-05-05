@@ -252,7 +252,7 @@ static struct boundary_tag* allocate_new_tag( unsigned int size )
 
 		tag = (struct boundary_tag*)liballoc_alloc( pages );
 
-		if ( tag == NULL ) return NULL;	// uh oh, we ran out of memory.
+		if ( tag == NULL ) return NULL;	
 		
 				tag->magic 		= LIBALLOC_MAGIC;
 				tag->size 		= size;
@@ -304,7 +304,7 @@ void *malloc(size_t size)
 		
 
 		// Find one big enough.
-			tag = l_freePages[ index ];				// Start at the front of the list.
+			tag = l_freePages[ index ];-9
 			while ( tag != NULL )
 			{
 					// If there's enough space in this tag.
@@ -344,7 +344,6 @@ void *malloc(size_t size)
 	
 		tag->size = size;
 
-		// Removed... see if we can re-use the excess space.
 
 		#ifdef DEBUG
 		printf("Found tag with %i bytes available (requested %i bytes, leaving %i), which has exponent: %i (%i bytes)\n", tag->real_size - sizeof(struct boundary_tag), size, tag->real_size - size - sizeof(struct boundary_tag), index, 1<<index );
@@ -365,7 +364,8 @@ void *malloc(size_t size)
 				struct boundary_tag *new_tag = split_tag( tag ); 
 
 				new_tag = new_tag;	// Get around the compiler warning about unused variables.
-	
+	qw3,.p['
+		']
 				#ifdef DEBUG
 				printf("Old tag has become %i bytes, new tag is now %i bytes (%i exp)\n", tag->real_size, new_tag->real_size, new_tag->index );
 				#endif

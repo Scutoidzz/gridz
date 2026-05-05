@@ -8,6 +8,11 @@ int Compositor::focused_window = -1;
 int Compositor::dragging_window = -1;
 int Compositor::drag_offset_x = 0;
 int Compositor::drag_offset_y = 0;
+int Compositor::resizing_window = -1;
+int Compositor::resize_start_mx = 0;
+int Compositor::resize_start_my = 0;
+int Compositor::resize_start_w = 0;
+int Compositor::resize_start_h = 0;
 
 void Compositor::init() {
     for (int i = 0; i < MAX_WINDOWS; i++) {
@@ -46,11 +51,11 @@ int Compositor::create_window(int x, int y, int width, int height, const char* t
     windows[id].title = title;
     windows[id].z_index = z_index;
     windows[id].content_buffer = nullptr;
-    
+    windows[id].content_buffer_w = 0;
+    windows[id].content_buffer_h = 0;
+
     window_count++;
-    sort_by_zindex();
     focus_window(id);
-    
     return id;
 }
 
@@ -88,7 +93,6 @@ void Compositor::set_window_alpha(int window_id, uint8_t alpha) {
 void Compositor::set_window_zindex(int window_id, int z_index) {
     if (window_id < 0 || window_id >= window_count) return;
     windows[window_id].z_index = z_index;
-    sort_by_zindex();
 }
 
 void Compositor::focus_window(int window_id) {
@@ -134,6 +138,41 @@ bool Compositor::is_dragging() {
     return dragging_window >= 0;
 }
 
+bool Compositor::start_resize(int window_id, int mx, int my) {
+    if (window_id < 0 || window_id >= window_count) return false;
+    resizing_window = window_id;
+    resize_start_mx = mx;
+    resize_start_my = my;
+    resize_start_w = windows[window_id].width;
+    resize_start_h = windows[window_id].height;
+    return true;
+}
+
+void Compositor::update_resize(int mx, int my) {
+    if (resizing_window < 0 || resizing_window >= window_count) return;
+    int new_w = resize_start_w + (mx - resize_start_mx);
+    int new_h = resize_start_h + (my - resize_start_my);
+    if (new_w < 120) new_w = 120;
+    if (new_h < 80) new_h = 80;
+    windows[resizing_window].width = new_w;
+    windows[resizing_window].height = new_h;
+}
+
+void Compositor::end_resize() {
+    resizing_window = -1;
+}
+
+bool Compositor::is_resizing() {
+    return resizing_window >= 0;
+}
+
+bool Compositor::is_on_resize_handle(int window_id, int mx, int my) {
+    if (window_id < 0 || window_id >= window_count) return false;
+    Window* win = &windows[window_id];
+    return (mx >= win->x + win->width - 14 && mx <= win->x + win->width &&
+            my >= win->y + win->height - 14 && my <= win->y + win->height);
+}
+
 int Compositor::get_window_at(int mx, int my) {
     // Check from top to bottom (reverse order)
     for (int i = window_count - 1; i >= 0; i--) {
@@ -158,54 +197,38 @@ bool Compositor::is_on_titlebar(int window_id, int mx, int my) {
 
 void Compositor::draw_reflective_titlebar(limine_framebuffer* fb, Window* win, bool focused) {
     if (!fb || !win) return;
-    
+
     int titlebar_y = win->y;
     int titlebar_height = MAX_TITLEBAR_HEIGHT;
-    
-    // Base titlebar color (darker when unfocused)
-    uint32_t base_color = focused ? 0x404040 : 0x303030;
-    
-    // Draw gradient for reflective effect
+
+    // macOS-style: light gray gradient titlebar
+    uint8_t top_r = focused ? 0xD8 : 0xED;
+    uint8_t top_g = focused ? 0xD8 : 0xED;
+    uint8_t top_b = focused ? 0xD8 : 0xED;
+    uint8_t bot_r = focused ? 0xBE : 0xE0;
+    uint8_t bot_g = focused ? 0xBE : 0xE0;
+    uint8_t bot_b = focused ? 0xBE : 0xE0;
+
     for (int row = 0; row < titlebar_height; row++) {
-        float intensity = 1.0f - (float)row / (float)titlebar_height;
-        intensity = intensity * intensity; // Quadratic falloff for gloss
-        
-        uint8_t r = (uint8_t)((base_color >> 16) & 0xFF);
-        uint8_t g = (uint8_t)((base_color >> 8) & 0xFF);
-        uint8_t b = (uint8_t)(base_color & 0xFF);
-        
-        // Add highlight at top for reflection
-        uint8_t highlight = (uint8_t)(80 * intensity);
-        r = (r + highlight > 255) ? 255 : r + highlight;
-        g = (g + highlight > 255) ? 255 : g + highlight;
-        b = (b + highlight > 255) ? 255 : b + highlight;
-        
-        uint32_t row_color = (r << 16) | (g << 8) | b;
-        
-        // Draw row with alpha blending
+        uint8_t r = (uint8_t)((int)top_r + ((int)bot_r - top_r) * row / titlebar_height);
+        uint8_t g = (uint8_t)((int)top_g + ((int)bot_g - top_g) * row / titlebar_height);
+        uint8_t b = (uint8_t)((int)top_b + ((int)bot_b - top_b) * row / titlebar_height);
+        uint32_t row_color = ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
         draw_rectangle_alpha(fb, win->x, titlebar_y + row, win->width, 1, row_color, win->alpha);
     }
-    
-    // Add glossy highlight strip at top
-    for (int row = 0; row < 4; row++) {
-        float gloss = 1.0f - (float)row / 4.0f;
-        uint8_t gloss_val = (uint8_t)(100 * gloss);
-        uint32_t gloss_color = (gloss_val << 16) | (gloss_val << 8) | gloss_val;
-        draw_rectangle_alpha(fb, win->x, titlebar_y + row, win->width, 1, gloss_color, (uint8_t)(win->alpha * 0.5f));
-    }
-    
-    // Draw window title
-    if (win->title) {
-        int text_x = win->x + 10;
-        int text_y = titlebar_y + 10;
-        draw_string(fb, text_x, text_y, win->title, 0xFFFFFF);
-    }
-    
+
     // Draw close button (red circle)
     int close_x = win->x + win->width - 25;
     int close_y = titlebar_y + 8;
-    draw_circle(fb, close_x, close_y, 8, 0xFF4444);
+    draw_circle(fb, close_x, close_y, 8, 0xCC3333);
     draw_string(fb, close_x - 3, close_y - 4, "X", 0xFFFFFF);
+
+    if (win->title) {
+        int text_x = win->x + 10;
+        int text_y = titlebar_y + 10;
+        uint32_t title_color = focused ? 0x222222 : 0x555555;
+        draw_string(fb, text_x, text_y, win->title, title_color);
+    }
 }
 
 void Compositor::draw_titlebar(limine_framebuffer* fb, Window* win, bool focused) {
@@ -214,27 +237,38 @@ void Compositor::draw_titlebar(limine_framebuffer* fb, Window* win, bool focused
 
 void Compositor::render(limine_framebuffer* fb) {
     if (!fb) return;
-    
-    // Render windows from bottom to top
-    for (int i = 0; i < window_count; i++) {
+
+    // Build a z-sorted index array so window IDs stay stable
+    int order[MAX_WINDOWS];
+    for (int i = 0; i < window_count; i++) order[i] = i;
+    for (int i = 0; i < window_count - 1; i++)
+        for (int j = 0; j < window_count - i - 1; j++)
+            if (windows[order[j]].z_index > windows[order[j+1]].z_index) {
+                int tmp = order[j]; order[j] = order[j+1]; order[j+1] = tmp;
+            }
+
+    for (int ii = 0; ii < window_count; ii++) {
+        int i = order[ii];
         if (!windows[i].visible) continue;
-        
+
         Window* win = &windows[i];
         
         // Draw window background with alpha or custom content_buffer
         if (win->content_buffer) {
             uint32_t* fb_ptr = (uint32_t*)fb->address;
             int stride = fb->pitch / 4;
-            int content_w = win->width;
-            int content_h = win->height - MAX_TITLEBAR_HEIGHT;
+            int buf_w = win->content_buffer_w ? win->content_buffer_w : win->width;
+            int buf_h = win->content_buffer_h ? win->content_buffer_h : (win->height - MAX_TITLEBAR_HEIGHT);
+            int draw_w = win->width < buf_w ? win->width : buf_w;
+            int draw_h = (win->height - MAX_TITLEBAR_HEIGHT) < buf_h ? (win->height - MAX_TITLEBAR_HEIGHT) : buf_h;
             int start_x = win->x;
             int start_y = win->y + MAX_TITLEBAR_HEIGHT;
-            
-            for (int y = 0; y < content_h; y++) {
+
+            for (int y = 0; y < draw_h; y++) {
                 if (start_y + y < 0 || start_y + y >= (int)fb->height) continue;
-                for (int x = 0; x < content_w; x++) {
+                for (int x = 0; x < draw_w; x++) {
                     if (start_x + x < 0 || start_x + x >= (int)fb->width) continue;
-                    fb_ptr[(start_y + y) * stride + (start_x + x)] = win->content_buffer[y * content_w + x];
+                    fb_ptr[(start_y + y) * stride + (start_x + x)] = win->content_buffer[y * buf_w + x];
                 }
             }
         } else {
@@ -246,11 +280,19 @@ void Compositor::render(limine_framebuffer* fb) {
         // Draw titlebar
         draw_titlebar(fb, win, win->focused);
         
-        // Draw window border
-        uint32_t border_color = win->focused ? 0x666666 : 0x444444;
-        draw_rectangle_alpha(fb, win->x, win->y, win->width, 2, border_color, win->alpha);
-        draw_rectangle_alpha(fb, win->x, win->y + win->height - 2, win->width, 2, border_color, win->alpha);
-        draw_rectangle_alpha(fb, win->x, win->y, 2, win->height, border_color, win->alpha);
-        draw_rectangle_alpha(fb, win->x + win->width - 2, win->y, 2, win->height, border_color, win->alpha);
+        // macOS-style subtle border
+        uint32_t border_color = win->focused ? 0xB0B0B0 : 0xD0D0D0;
+        draw_rectangle_alpha(fb, win->x, win->y, win->width, 1, border_color, win->alpha);
+        draw_rectangle_alpha(fb, win->x, win->y + win->height - 1, win->width, 1, border_color, win->alpha);
+        draw_rectangle_alpha(fb, win->x, win->y, 1, win->height, border_color, win->alpha);
+        draw_rectangle_alpha(fb, win->x + win->width - 1, win->y, 1, win->height, border_color, win->alpha);
+
+        // Resize handle — 3 dots in bottom-right corner
+        uint32_t rc = win->focused ? 0x888888 : 0xAAAAAA;
+        int rx = win->x + win->width;
+        int ry = win->y + win->height;
+        draw_rectangle_alpha(fb, rx - 4,  ry - 4,  2, 2, rc, win->alpha);
+        draw_rectangle_alpha(fb, rx - 8,  ry - 4,  2, 2, rc, win->alpha);
+        draw_rectangle_alpha(fb, rx - 4,  ry - 8,  2, 2, rc, win->alpha);
     }
 }

@@ -1,4 +1,5 @@
 #include "ui/ui.hpp"
+#include "ui/components/comp.hpp"
 #include "kernel/drivers/ata.hpp"
 #include "kernel/fs/fat32.hpp"
 #include "limine.h"
@@ -8,6 +9,7 @@ static int install_progress = 0;
 static bool selected_slave = false;
 static bool drive_master_exists = false;
 static bool drive_slave_exists = false;
+static bool drives_scanned = false;
 
 static char master_model[41] = {0};
 static uint32_t master_mb = 0;
@@ -15,7 +17,7 @@ static char slave_model[41] = {0};
 static uint32_t slave_mb = 0;
 
 /* External UI helpers */
-extern int draw_window(limine_framebuffer* fb, int x, int y, int w, int h, const char* title, uint32_t title_color);
+extern int draw_window(limine_framebuffer* fb, int x, int y, int w, int h, const char* title);
 extern bool hit_close(int px, int py, int wx, int wy, int ww);
 extern int g_w, g_h;
 extern bool installer_open;
@@ -57,7 +59,8 @@ static void get_drive_info(bool slave, char* out_model, uint32_t* out_mb) {
 void draw_installer(limine_framebuffer* fb) {
     if (!installer_open) return;
 
-    if (!installing) {
+    if (!installing && !drives_scanned) {
+        drives_scanned = true;
         serial_print("[DBG] Installer: Scanning for drives...\n");
         drive_master_exists = ata::exists(false);
         if (drive_master_exists) {
@@ -66,7 +69,7 @@ void draw_installer(limine_framebuffer* fb) {
         } else {
             serial_print("[DBG] Installer: Primary Master NOT found\n");
         }
-        
+
         drive_slave_exists = ata::exists(true);
         if (drive_slave_exists) {
             serial_print("[DBG] Installer: Primary Slave Found\n");
@@ -79,7 +82,7 @@ void draw_installer(limine_framebuffer* fb) {
     int ww = 550, wh = 380;
     int wx = (g_w - ww) / 2;
     int wy = (g_h - wh) / 2;
-    int iy = draw_window(fb, wx, wy, ww, wh, "Gridz OS Installer", 0x2A6EBB);
+    int iy = draw_window(fb, wx, wy, ww, wh, "Gridz Installer");
 
     if (!installing) {
         draw_string(fb, wx + 20, iy + 20, "Select a target drive for installation:", 0xFFFFFF);
@@ -117,7 +120,7 @@ void draw_installer(limine_framebuffer* fb) {
             draw_string(fb, wx + 230, iy + 268, "INSTALL NOW", 0xFFFFFF);
         }
     } else {
-        draw_string(fb, wx + 20, iy + 20, "Installing Gridz OS to Disk...", 0xFFFFFF);
+        draw_string(fb, wx + 20, iy + 20, "Installing Gridz to Disk...", 0xFFFFFF);
         
         draw_rect(fb, wx + 20, iy + 80, ww - 40, 25, 0x111111);
         int progress_w = ((ww - 40) * install_progress) / 100;
@@ -162,9 +165,7 @@ bool handle_installer_click(limine_framebuffer* fb, int mx, int my) {
     int iy = wy + 22;
 
     if (hit_close(mx, my, wx, wy, ww)) {
-        installer_open = false;
-        draw_taskbar(fb); draw_top_bar(fb);
-        return true;
+        return true; // installer cannot be dismissed — boot from disk to reach the desktop
     }
 
     if (!installing) {

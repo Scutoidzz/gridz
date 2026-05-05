@@ -2,6 +2,8 @@
 #include <stdint.h>
 #include "limine.h"
 #include "font.hpp"
+#include "fs/fat32.hpp"
+
 
 extern uint64_t hhdm_offset;
 

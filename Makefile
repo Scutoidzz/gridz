@@ -19,7 +19,9 @@ COMMON_FLAGS = -I$(DOOM_DIR) \
                -mno-red-zone -mcmodel=kernel \
                -mno-mmx -mno-sse -mno-sse2 \
                -fno-pic -fno-pie -ffreestanding \
-               -O2 -Wall -Wextra
+               -O2 -Wall -Wextra -fpermissive \
+			   -Wunused-variable -Waddress \
+			   -fmax-include-depth=4000
 
 CXXFLAGS = $(COMMON_FLAGS) -fno-exceptions -fno-rtti -std=c++17
 CFLAGS   = $(COMMON_FLAGS) -std=c11
@@ -29,7 +31,7 @@ TARGET    = kernel.elf
 DOOM_SRCS = $(wildcard $(DOOM_DIR)/*.c)
 KERNEL_C_SRCS = $(KERNEL_DIR)/liballoc.c
 
-SRCS = $(KERNEL_DIR)/main.cpp \
+CXX_SRCS = $(KERNEL_DIR)/main.cpp \
        $(KERNEL_DIR)/arch/gdt.cpp \
        $(KERNEL_DIR)/allocator.cpp \
        $(KERNEL_DIR)/font.cpp \
@@ -45,10 +47,12 @@ SRCS = $(KERNEL_DIR)/main.cpp \
        $(SRC_DIR)/setup/installer.cpp \
        $(SRC_DIR)/userspace/mainui.cpp
 
+SRCS = $(CXX_SRCS)
+
 ASM_SRCS = $(KERNEL_DIR)/arch/interrupts.asm
 
 # Generate object file paths in the build directory
-OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS)) \
+OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(CXX_SRCS)) \
        $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(DOOM_SRCS)) \
        $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(KERNEL_C_SRCS)) \
        $(patsubst $(SRC_DIR)/%.asm,$(BUILD_DIR)/%.o,$(ASM_SRCS))
@@ -57,7 +61,9 @@ LDFLAGS = -ffreestanding -nostdlib -no-pie -static \
           -Wl,-z,max-page-size=0x1000 -T $(KERNEL_DIR)/linker.ld
 
 # ── Build rules ───────────────────────────────────────────────────────────
-all: $(TARGET)
+all: $(TARGET) sync-apps
+
+sync-apps:
 
 $(TARGET): $(OBJS)
 	$(CXX) $(LDFLAGS) -o $@ $^
@@ -84,7 +90,7 @@ clean:
 ISO_IMAGE = gridz.iso
 LIMINE_DIR = limine-bin-repo
 
-.PHONY: all clean iso install run dev
+.PHONY: all clean iso install run dev sync-apps
 
 iso: $(TARGET)
 	@if [ ! -d "$(LIMINE_DIR)" ]; then \
@@ -136,6 +142,8 @@ dev: $(TARGET)
 	cp $(TARGET) iso_root/boot/
 	cp DOOM1.WAD iso_root/ 2>/dev/null || true
 	dd if=/dev/zero of=hdd.img bs=1M count=500 status=none
+	mformat -i hdd.img -v "Gridz"
+	mmd -i hdd.img ::/boot
 	qemu-system-x86_64 \
 		-M pc \
 		-m 512M \
@@ -145,7 +153,7 @@ dev: $(TARGET)
 		-serial stdio \
 		-no-reboot \
 		-display sdl \
-		-name "Gridz OS [Development Mode]"
+		-name "Gridz [Development Mode]"
 
 # INSTALL: Open the Live CD to install the OS
 install: $(TARGET) iso

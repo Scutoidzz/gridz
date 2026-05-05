@@ -83,7 +83,6 @@ int render_png(const char* filename, limine_framebuffer* fb) {
         offset += 8 + len + 4;
     }
 
-    // PNG color type 2 is RGB (3 bytes per pixel), 6 is RGBA (4 bytes per pixel)
     int bpp = (header.color_type == 6) ? 4 : 3;
     size_t decompressed_size = header.height * (1 + header.width * bpp);
     uint8_t* decompressed = (uint8_t*)malloc(decompressed_size);
@@ -107,7 +106,6 @@ int render_png(const char* filename, limine_framebuffer* fb) {
         unfilter_scanline(pixel_data, prev_line, filter_type, bpp, header.width);
         prev_line = pixel_data;
 
-        // Draw to framebuffer
         for (uint32_t x = 0; x < header.width; x++) {
             uint8_t r = pixel_data[x * bpp];
             uint8_t g = pixel_data[x * bpp + 1];

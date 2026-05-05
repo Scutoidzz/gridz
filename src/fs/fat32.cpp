@@ -44,7 +44,7 @@ bool format(uint32_t total_sectors, const char* label, bool slave) {
     // Init first few FAT entries
     // FAT32 entries are 32-bit
     uint32_t* fat = (uint32_t*)buffer;
-    fat[0] = 0x0FFFFFF8; // Media type
+    fat[0] = 0x0FFFFFF8; 
     fat[1] = 0x0FFFFFFF; // EOC
     fat[2] = 0x0FFFFFFF; // Root directory EOC
     
@@ -66,8 +66,8 @@ bool init(bool slave) {
     return true;
 }
 
-// Placeholder for full file IO - will be expanded if needed
+
 void* read_file(const char* filename, size_t* out_size) { (void)filename; (void)out_size; return nullptr; }
 bool write_file(const char* filename, void* data, size_t size) { (void)filename; (void)data; (void)size; return false; }
-
+void 
 }

@@ -9,6 +9,8 @@
 #include "pic.hpp"
 #include "scheduler.hpp"
 #include "terminal.hpp"
+#include "ui/compositor.hpp"
+#include "ui/components/comp.hpp"
 #include "ui/ui.hpp"
 #include <stddef.h>
 #include <stdint.h>
@@ -50,8 +52,6 @@ extern "C" void exc29();
 extern "C" void exc30();
 extern "C" void exc31();
 
-/* ── Global state ────────────────────────────────────────────────────────────
- */
 extern Terminal *global_term;
 
 struct cpu_status_t {
@@ -63,8 +63,6 @@ struct cpu_status_t {
 extern "C" void itoa(uint64_t n, char *s, int base) {
   static char digits[] = "0123456789ABCDEF";
   char *p = s;
-
-  // Handle signed decimal
   if (base == 10 && (int64_t)n < 0) {
     *p++ = '-';
     n = (uint64_t)(-(int64_t)n);
@@ -107,7 +105,6 @@ extern "C" void serial_print(const char *s) {
 extern "C" volatile struct limine_framebuffer_request fb_request;
 
 static inline uint64_t canonicalize_va48(uint64_t addr) {
-  /* Sign-extend bit 47 for 4-level paging canonical form. */
   return (uint64_t)((int64_t)(addr << 16) >> 16);
 }
 
@@ -125,10 +122,6 @@ extern "C" void exception_handler(cpu_status_t *status) {
   itoa(cr2, buf, 16);
   serial_print(buf);
   serial_print("\n");
-
-  /* Fail-safe panic path: keep framebuffer access out of the exception path.
-   * If framebuffer mappings/pointers are wrong, touching them here can recurse
-   * into #DF/#PF and end in a triple fault. */
 
   while (1) {
     __asm__("cli; hlt");
@@ -175,8 +168,8 @@ extern "C" __attribute__((target("general-regs-only"))) void timer_handler() {
 
 extern "C" __attribute__((target("general-regs-only"))) void mouse_handler() {
   mouse_handle_irq();
-  outb(0x20, 0x20);
   outb(0xA0, 0x20);
+  outb(0x20, 0x20);
 }
 
 static void pit_init(uint32_t freq) {
@@ -185,12 +178,6 @@ static void pit_init(uint32_t freq) {
   outb(0x40, (uint8_t)(divisor & 0xFF));
   outb(0x40, (uint8_t)((divisor >> 8) & 0xFF));
 }
-
-/* ── Limine v7 request block ────────────────────────────────────────────────
- * Section attributes are the ONLY reliable way to guarantee ordering.
- * The linker script maps: .limine_reqs_start → .limine_reqs → .limine_reqs_end
- * so Limine sees: START_MARKER ... BASE_REVISION ... requests ... END_MARKER.
- */
 
 #define LIMINE_ATTR_START __attribute__((used, section(".limine_reqs_start")))
 #define LIMINE_ATTR_REQ __attribute__((used, section(".limine_reqs")))
@@ -218,15 +205,12 @@ LIMINE_ATTR_END static volatile uint64_t _limine_end[2] = {0xadc0e0531bb10d03,
                                                            0x9572709f31764c62};
 }
 
-/* Higher Half Direct Map offset — use to convert phys → virt:
- *   virtual_address = hhdm_offset + physical_address */
 uint64_t hhdm_offset = 0;
 
 extern "C" volatile struct limine_module_response *get_module_response() {
   return module_request.response;
 }
 
-/* Returns total usable RAM in bytes as reported by the Limine memory map. */
 static uint64_t detect_usable_ram() {
   if (!memmap_request.response)
     return 0;
@@ -242,9 +226,7 @@ static uint64_t detect_usable_ram() {
   return total;
 }
 
-/* Set at boot; true when the machine has < 32 MB of RAM. */
 extern "C" void _start(void) {
-  /* Zero BSS section - required for freestanding kernels */
   extern char bss_start[];
   extern char bss_end[];
   for (char *p = bss_start; p < bss_end; p++)
@@ -259,7 +241,6 @@ extern "C" void _start(void) {
   uint64_t ram_bytes = detect_usable_ram();
   in_gui_mode = (ram_bytes >= (128ULL * 1024 * 1024));
 
-  /* ── Initialize Memory Manager ────────────────────────────────────────── */
   pmm_init();
 
   if (fb_request.response == NULL ||
@@ -278,19 +259,17 @@ extern "C" void _start(void) {
       (struct limine_framebuffer *)malloc(sizeof(struct limine_framebuffer));
   memcpy(backbuffer_fb, fb, sizeof(struct limine_framebuffer));
 
-  // Allocate large backbuffer directly from PMM to avoid liballoc limitations
   uint64_t backbuffer_size = fb->pitch * fb->height;
   uint64_t pages_needed = (backbuffer_size + 4095) / 4096;
   void *phys_ptr = pmm_alloc_pages(pages_needed);
   if (!phys_ptr) {
-    serial_print("FATAL: Out of memory for backbuffer!\n");
+    serial_print("No memory for backbuffer!\n");
     while (1) {
       __asm__("cli; hlt");
     }
   }
   backbuffer_fb->address = (void *)((uint64_t)phys_ptr + hhdm_offset);
 
-  /* ── Wire all 32 CPU exception handlers individually ─────────────────── */
   idt_set_descriptor(0, (void *)exc0, 0x8E);
   idt_set_descriptor(1, (void *)exc1, 0x8E);
   idt_set_descriptor(2, (void *)exc2, 0x8E);
@@ -324,15 +303,13 @@ extern "C" void _start(void) {
   idt_set_descriptor(30, (void *)exc30, 0x8E);
   idt_set_descriptor(31, (void *)exc31, 0x8E);
 
-  /* ── IRQ handlers (PIC1 at 0x20, PIC2 at 0x28) ───────────────────────── */
-  idt_set_descriptor(32, (void *)timer_isr, 0x8E);    // IRQ0  – PIT
-  idt_set_descriptor(33, (void *)keyboard_isr, 0x8E); // IRQ1  – keyboard
-  idt_set_descriptor(44, (void *)mouse_isr, 0x8E);    // IRQ12 – PS/2 mouse
+  idt_set_descriptor(32, (void *)timer_isr, 0x8E);
+  idt_set_descriptor(33, (void *)keyboard_isr, 0x8E);
+  idt_set_descriptor(44, (void *)mouse_isr, 0x8E);
 
   idtr_reg.limit = (uint16_t)(sizeof(idt_entry) * 256 - 1);
   idtr_reg.base = (uint64_t)&idt[0];
 
-  /* ── Reprogram the 8259 PIC before loading the IDT ───────────────────── */
   pic_init();
 
   __asm__ volatile("lidt %0" : : "m"(idtr_reg));
@@ -363,12 +340,12 @@ extern "C" void _start(void) {
       bool doom_is_focused =
           (doom_window_id != -1 && Compositor::windows[doom_window_id].focused);
 
-      // Drain keyboard buffer only if Doom is NOT focused, or not running
       if (!doom_running || !doom_is_focused) {
-        int _p;
-        uint8_t _s;
-        while (get_next_key(&_p, &_s))
-          ;
+        int pressed_k;
+        uint8_t sc_k;
+        while (get_next_key(&pressed_k, &sc_k)) {
+          (void)pressed_k; (void)sc_k;
+        }
       }
 
       uint32_t now = timer_ticks * 10;
@@ -384,9 +361,10 @@ extern "C" void _start(void) {
       }
 
       if ((btns & 0x01) && (mx != last_mx || my != last_my)) {
-        if (mouse_dragging) {
+        if (mouse_dragging)
           handle_mouse_drag(mx, my);
-        }
+        if (mouse_resizing)
+          handle_mouse_resize(mx, my);
       }
 
       last_mx = mx;
@@ -394,23 +372,32 @@ extern "C" void _start(void) {
 
       if (released & 0x01) {
         end_mouse_drag();
+        end_mouse_resize();
       }
 
       if (now - last_tick >= 16) {
         draw_rect(backbuffer_fb, 0, 0, fb->width, fb->height, 0x0D1117);
-        draw_wallpaper_gradient(backbuffer_fb);
 
-        draw_neofetch(backbuffer_fb);
-        draw_clock_window(backbuffer_fb);
+        if (installer_available) {
+          // ISO boot: only the installer is visible — no desktop
+          draw_installer(backbuffer_fb);
+        } else {
+          // Disk boot: full desktop
+          draw_wallpaper_gradient(backbuffer_fb);
 
-        Compositor::render(backbuffer_fb);
+          draw_neofetch(backbuffer_fb);
+          draw_clock_window(backbuffer_fb);
+          draw_calculator_window(backbuffer_fb);
+          draw_filemanager_window(backbuffer_fb);
 
-        draw_top_bar(backbuffer_fb);
-        draw_taskbar(backbuffer_fb);
-        draw_start_menu(backbuffer_fb);
-        draw_installer(backbuffer_fb);
+          Compositor::render(backbuffer_fb);
+
+          draw_top_bar(backbuffer_fb);
+          draw_taskbar(backbuffer_fb);
+          draw_start_menu(backbuffer_fb);
+        }
+
         draw_ui_cursor(backbuffer_fb);
-
         memcpy(fb->address, backbuffer_fb->address, fb->pitch * fb->height);
         last_tick = now;
       }
@@ -434,7 +421,6 @@ extern "C" void _start(void) {
       }
 
       if (doom_running) {
-        // Check if Doom window was closed by the user
         bool window_exists = false;
         for (int i = 0; i < Compositor::window_count; i++) {
           if (Compositor::windows[i].content_buffer == DG_ScreenBuffer) {
@@ -453,7 +439,6 @@ extern "C" void _start(void) {
     } else {
       if (was_gui) {
         was_gui = false;
-        // Clear screen for Terminal
         uint32_t *fb_ptr = (uint32_t *)((uint64_t)fb->address);
         uint64_t total_pixels = (fb->pitch / 4) * fb->height;
         for (uint64_t i = 0; i < total_pixels; i++)
